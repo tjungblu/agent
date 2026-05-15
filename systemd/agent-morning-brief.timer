@@ -1,0 +1,10 @@
+[Unit]
+Description=Developer Workflow Morning Brief Timer
+Requires=jira-mcp.service
+
+[Timer]
+OnCalendar=Mon-Fri 09:03:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

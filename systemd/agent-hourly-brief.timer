@@ -1,0 +1,19 @@
+[Unit]
+Description=Developer Workflow Hourly Brief Timer
+Requires=jira-mcp.service
+
+[Timer]
+OnCalendar=Mon-Fri 09:47:00
+OnCalendar=Mon-Fri 10:47:00
+OnCalendar=Mon-Fri 11:47:00
+OnCalendar=Mon-Fri 12:47:00
+OnCalendar=Mon-Fri 13:47:00
+OnCalendar=Mon-Fri 14:47:00
+OnCalendar=Mon-Fri 15:47:00
+OnCalendar=Mon-Fri 16:47:00
+OnCalendar=Mon-Fri 17:47:00
+OnCalendar=Mon-Fri 18:47:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
