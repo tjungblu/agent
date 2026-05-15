@@ -7,9 +7,9 @@ Monitors GitHub PRs and Jira tickets, generates briefs with what needs attention
 - Tracks your GitHub PRs and review requests
 - Monitors Jira tickets via Atlassian MCP server
 - Identifies blockers, missing approvals, urgent items
-- Can add labels or update status
 - Generates briefs with prioritized action items
 - Detects what changed since last run
+- **Automated labeling agent**: Auto-labels bot PRs with required Tide labels (/approve, /verified, /label backport-risk-assessed)
 
 ## Architecture
 
@@ -18,6 +18,7 @@ Monitors GitHub PRs and Jira tickets, generates briefs with what needs attention
 **Scheduler** (systemd timers)
 - Morning brief: Mon-Fri at 9:03 AM
 - Hourly briefs: Mon-Fri at :47 past each hour (9 AM - 6 PM)
+- Bot PR labeler: Mon-Fri at 9:30 AM and 2:30 PM
 
 **Main Orchestrator** (main.py)
 - Initializes Claude API client via Vertex AI
@@ -69,6 +70,23 @@ State Tools:
 8. Generate structured brief with action items
 9. Save brief as markdown file
 10. Save state for next run
+
+### Automated Labeling Agent
+
+The labeling agent automatically processes bot-created PRs and adds required Tide labels.
+
+**Target PRs:**
+- Repositories: openshift/etcd, openshift/cluster-etcd-operator
+- Bot authors: openshift-cherrypick-robot, ocp-sustaining-admins, openshift-bot
+
+**Actions:**
+- Checks PR status and required Tide labels
+- Adds /approve for all bot PRs
+- Adds /label backport-risk-assessed for cherrypick PRs
+- Adds /verified if all required tests pass
+- Posts comment identifying the action was performed by the agent on behalf of you
+
+**Schedule:** Runs twice daily (9:30 AM and 2:30 PM) to catch new bot PRs
 
 ### Brief Storage
 
@@ -158,6 +176,12 @@ Generate morning brief (creates desktop symlink):
 
 Dry run (no state changes):
 - uv run main.py --mode brief --dry-run
+
+Run bot PR labeler:
+- uv run main.py --mode label-bot-prs
+
+Test labeler (dry run):
+- uv run main.py --mode label-bot-prs --dry-run
 
 Check specific PR:
 - uv run main.py --mode check-pr --pr owner/repo#123

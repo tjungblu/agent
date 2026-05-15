@@ -320,7 +320,7 @@ def main():
     parser = argparse.ArgumentParser(description="Developer workflow automation agent")
     parser.add_argument(
         "--mode",
-        choices=["brief", "check-pr", "setup-mcp"],
+        choices=["brief", "check-pr", "setup-mcp", "label-bot-prs"],
         default="brief",
         help="Mode to run in",
     )
@@ -332,6 +332,12 @@ def main():
 
     if args.mode == "setup-mcp":
         setup_mcp()
+        return
+
+    if args.mode == "label-bot-prs":
+        # Run the labeling agent
+        from labeler import run_labeler
+        run_labeler(dry_run=args.dry_run)
         return
 
     # Initialize client

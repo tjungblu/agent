@@ -76,8 +76,10 @@ echo "✓ Found uv at: $UV_PATH"
 # Copy systemd files and substitute paths
 sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-morning-brief.service" > "$SYSTEMD_USER_DIR/agent-morning-brief.service"
 sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-hourly-brief.service" > "$SYSTEMD_USER_DIR/agent-hourly-brief.service"
+sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-labeler.service" > "$SYSTEMD_USER_DIR/agent-labeler.service"
 cp "$SCRIPT_DIR/systemd/agent-morning-brief.timer" "$SYSTEMD_USER_DIR/"
 cp "$SCRIPT_DIR/systemd/agent-hourly-brief.timer" "$SYSTEMD_USER_DIR/"
+cp "$SCRIPT_DIR/systemd/agent-labeler.timer" "$SYSTEMD_USER_DIR/"
 
 echo "✓ Systemd files copied"
 echo
@@ -97,10 +99,12 @@ fi
 echo "🎯 Enabling timers..."
 systemctl --user enable agent-morning-brief.timer
 systemctl --user enable agent-hourly-brief.timer
+systemctl --user enable agent-labeler.timer
 
 echo "▶️  Starting timers..."
 systemctl --user start agent-morning-brief.timer
 systemctl --user start agent-hourly-brief.timer
+systemctl --user start agent-labeler.timer
 
 echo "✓ Timers started"
 echo
@@ -114,17 +118,8 @@ echo
 echo "Hourly Brief Timer:"
 systemctl --user status agent-hourly-brief.timer --no-pager -l
 echo
+echo "Bot PR Labeler Timer:"
+systemctl --user status agent-labeler.timer --no-pager -l
+echo
 
 echo "✅ Installation complete!"
-echo
-echo "📝 Next steps:"
-echo "   - Test brief: uv run python main.py --mode brief --dry-run"
-echo "   - Check timers: systemctl --user list-timers"
-echo "   - View morning brief logs: journalctl --user -u agent-morning-brief.service -f"
-echo "   - View hourly brief logs: journalctl --user -u agent-hourly-brief.service -f"
-echo
-echo "🎯 Schedule:"
-echo "   - Morning brief: Mon-Fri at 09:03 AM"
-echo "   - Hourly briefs: Mon-Fri at :47 past each hour (9 AM - 6 PM)"
-echo
-echo "ℹ️  Note: MCP server spawns automatically when briefs run (no daemon needed)"
