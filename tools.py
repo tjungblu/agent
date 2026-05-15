@@ -88,17 +88,19 @@ GITHUB_TOOLS = [
 
 
 def get_my_prs(state: str = "open") -> Dict[str, Any]:
-    """Use gh CLI to get user's PRs."""
+    """Use gh CLI to get user's PRs across all repositories."""
     cmd = [
         "gh",
-        "pr",
-        "list",
+        "search",
+        "prs",
         "--author",
         "@me",
         "--state",
         state,
         "--json",
-        "number,title,url,repository,reviewDecision,statusCheckRollup",
+        "number,title,url,repository,author,labels,isDraft,updatedAt,createdAt",
+        "--limit",
+        "100",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -114,8 +116,10 @@ def get_prs_needing_review() -> Dict[str, Any]:
         "prs",
         "--review-requested",
         "@me",
+        "--state",
+        "open",
         "--json",
-        "number,title,url,repository,author",
+        "number,title,url,repository,author,labels,state,updatedAt",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
