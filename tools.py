@@ -98,14 +98,20 @@ def get_my_prs(state: str = "open") -> Dict[str, Any]:
         "--state",
         state,
         "--json",
-        "number,title,url,repository,author,labels,isDraft,updatedAt,createdAt",
+        "number,title,url,repository,author,labels,isDraft,updatedAt,createdAt,state",
         "--limit",
         "100",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         return {"error": result.stderr}
-    return {"prs": json.loads(result.stdout)}
+
+    all_prs = json.loads(result.stdout)
+    # If state is "open", filter to ensure we only get OPEN PRs
+    if state == "open":
+        filtered_prs = [pr for pr in all_prs if pr.get("state", "").upper() == "OPEN"]
+        return {"prs": filtered_prs}
+    return {"prs": all_prs}
 
 
 def get_prs_needing_review() -> Dict[str, Any]:
@@ -124,7 +130,11 @@ def get_prs_needing_review() -> Dict[str, Any]:
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         return {"error": result.stderr}
-    return {"prs": json.loads(result.stdout)}
+
+    # Explicitly filter out merged/closed PRs (gh CLI sometimes returns them despite --state open)
+    all_prs = json.loads(result.stdout)
+    open_prs = [pr for pr in all_prs if pr.get("state", "").upper() == "OPEN"]
+    return {"prs": open_prs}
 
 
 def get_pr_details(repo: str, pr_number: int) -> Dict[str, Any]:
