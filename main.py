@@ -37,34 +37,50 @@ Guidelines:
 - **NEVER show MERGED or CLOSED PRs** - filter them out completely from all sections
 - Include bot PRs and automated backports (they're important to track)
 - Keep briefs concise but informative
+- **Split PRs into DOWNSTREAM and UPSTREAM**:
+  - DOWNSTREAM = openshift/* repositories (Red Hat OpenShift work)
+  - UPSTREAM = all other repositories (etcd-io/*, kubernetes/* etc.)
 
 When generating the brief, structure it as:
-1. **🆕 NEW**: Items that appeared since last check
-2. **🚨 URGENT**: Items needing immediate attention
-   - ONLY include items that are:
+1. **🆕 NEW**: Items that appeared since last check (across all projects)
+
+2. **🏢 DOWNSTREAM (openshift/*)**: Red Hat OpenShift repositories
+   - **🚨 URGENT**: Items needing immediate attention
      * YOUR PRs with failing tests (MUST check: author.login == "tjungblu")
      * YOUR PRs with needs-rebase label (MUST check: author.login == "tjungblu")
      * Blocked PRs that you authored (MUST check: author.login == "tjungblu")
-     * Critical Jira tickets (P0, blockers, In Progress with issues)
-   - DO NOT include:
-     * PRs authored by other people (dusk125, tiraboschi, etc.) even if they have failing tests
-     * WIP/draft PRs authored by other people
-3. **👀 REVIEW REQUESTS**: PRs where you are requested as reviewer, sorted by recency
-   - **CRITICAL: Check PR state field - ONLY include PRs with state == "OPEN"**
-   - **NEVER include PRs with state == "MERGED" or "CLOSED"**
-   - Include all non-WIP OPEN PRs: human-authored, bot PRs, automated backports/cherrypicks
-   - Exclude PRs with labels: do-not-merge/work-in-progress, do-not-merge/hold
-   - Exclude PRs authored by you (those go in YOUR PRS section)
-   - Use format: [repo#number](url) - title (author)
-4. **✅ YOUR PRS**: Your open PRs (check author.login), sorted by recency
-   - Show ALL your PRs (including WIP, draft, hold)
-   - Flag important labels: needs-rebase, do-not-merge/work-in-progress, do-not-merge/hold
-   - Flag failing tests
-   - Use format: [repo#number](url) - title [labels if important]
-5. **📝 TICKETS**: Active Jira tickets (In Progress, To Do, Planning)
+     * DO NOT include PRs authored by other people even if they have failing tests
+   - **👀 REVIEW REQUESTS**: PRs where you are requested as reviewer, sorted by recency
+     * **CRITICAL: Check PR state field - ONLY include PRs with state == "OPEN"**
+     * **NEVER include PRs with state == "MERGED" or "CLOSED"**
+     * Include all non-WIP OPEN PRs: human-authored, bot PRs, automated backports/cherrypicks
+     * Exclude PRs with labels: do-not-merge/work-in-progress, do-not-merge/hold
+     * Exclude PRs authored by you (those go in YOUR PRS section)
+     * Use format: [repo#number](url) - title (author)
+   - **✅ YOUR PRS**: Your open PRs (check author.login), sorted by recency
+     * Show ALL your PRs (including WIP, draft, hold)
+     * Flag important labels: needs-rebase, do-not-merge/work-in-progress, do-not-merge/hold
+     * Flag failing tests
+     * Use format: [repo#number](url) - title [labels if important]
+
+3. **🌍 UPSTREAM (etcd-io/*, kubernetes/ etc.)**: Upstream open source repositories
+   - **🚨 URGENT**: Items needing immediate attention
+     * YOUR PRs with failing tests (MUST check: author.login == "tjungblu")
+     * YOUR PRs with needs-rebase label (MUST check: author.login == "tjungblu")
+     * Blocked PRs that you authored (MUST check: author.login == "tjungblu")
+   - **👀 REVIEW REQUESTS**: PRs where you are requested as reviewer, sorted by recency
+     * Same filtering rules as downstream
+     * Use format: [repo#number](url) - title (author)
+   - **✅ YOUR PRS**: Your open PRs (check author.login), sorted by recency
+     * Show ALL your PRs (including WIP, draft, hold)
+     * Flag important labels: needs-rebase, do-not-merge/work-in-progress, do-not-merge/hold
+     * Flag failing tests
+
+4. **📝 TICKETS**: Active Jira tickets (In Progress, To Do, Planning)
    - Skip verified/closed tickets
    - Use markdown links: [TICKET-ID](url)
-6. **🎯 ACTION ITEMS**: Top 3-5 concrete next steps
+
+5. **🎯 ACTION ITEMS**: Top 3-5 concrete next steps (across all projects)
    - Prioritize: needs-rebase on your PRs > failing tests on your PRs > reviews > other
 
 Format output as clean markdown with proper links.
