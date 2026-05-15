@@ -72,11 +72,29 @@ State Tools:
 
 ### Brief Storage
 
-All briefs are saved as markdown files in the briefings/ folder:
-- Morning briefs: YYYY-MM-DD-morning.md
-- Hourly briefs: YYYY-MM-DD-HHMM.md
+All briefs and state are saved in the briefings/ folder:
+- Morning briefs: briefings/YYYY/MM/DD-morning.md
+- Hourly briefs: briefings/YYYY/MM/DD/HHMM.md
+- State tracking: briefings/state.json
 
 Morning briefs are also copied to ~/Desktop/morning-brief.md for easy access. This file is replaced daily with the latest morning brief.
+
+Example structure:
+```
+briefings/
+├── state.json           ← Tracks changes between runs
+└── 2026/
+    └── 05/
+        ├── 15-morning.md
+        ├── 16-morning.md
+        ├── 15/
+        │   ├── 0947.md
+        │   ├── 1047.md
+        │   └── 1147.md
+        └── 16/
+            ├── 0947.md
+            └── 1047.md
+```
 
 ## Setup
 
@@ -108,7 +126,7 @@ Edit .env with:
 - ANTHROPIC_VERTEX_PROJECT_ID (your GCP project ID)
 - ANTHROPIC_VERTEX_REGION (us-east5 or similar)
 - ATLASSIAN_SITE (yourcompany.atlassian.net)
-- Optional: BRIEF_SCHEDULE, STATE_FILE, OUTPUT_FORMAT
+- Optional: BRIEF_SCHEDULE, OUTPUT_FORMAT
 
 ### Managing Services
 

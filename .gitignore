@@ -3,10 +3,7 @@
 .env.local
 .env.*.local
 
-# State file (contains your personal data)
-state.json
-
-# Briefs (contains your personal data)
+# Briefs and state (contains your personal data)
 briefings/
 
 # Logs

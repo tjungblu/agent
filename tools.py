@@ -150,7 +150,7 @@ def add_pr_label(repo: str, pr_number: int, label: str) -> Dict[str, Any]:
     return {"success": True, "message": f"Added label '{label}' to PR #{pr_number}"}
 
 
-def get_previous_state(state_file: str = "state.json") -> Dict[str, Any]:
+def get_previous_state(state_file: str = "briefings/state.json") -> Dict[str, Any]:
     """Load previous state."""
     try:
         with open(state_file, "r") as f:
@@ -159,8 +159,14 @@ def get_previous_state(state_file: str = "state.json") -> Dict[str, Any]:
         return {"prs": {}, "tickets": {}, "last_run": None, "briefs": []}
 
 
-def save_state(state: Dict[str, Any], state_file: str = "state.json") -> Dict[str, Any]:
+def save_state(state: Dict[str, Any], state_file: str = "briefings/state.json") -> Dict[str, Any]:
     """Save current state."""
+    # Create briefings directory if it doesn't exist
+    import os
+    state_dir = os.path.dirname(state_file)
+    if state_dir:
+        os.makedirs(state_dir, exist_ok=True)
+
     with open(state_file, "w") as f:
         json.dump(state, f, indent=2)
     return {"success": True}
