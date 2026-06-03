@@ -138,10 +138,10 @@ def filter_prs(all_prs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     filtered = []
 
     # Keywords that must be in title OR body (case insensitive)
-    INCLUDE_KEYWORDS = ["kms", "vault", "encryption", "key", "rotation", "preflight", "configobserver"]
+    INCLUDE_KEYWORDS = ["kms", "vault", "encryption", "key", "rotation", "preflight", "kek", "keyId"]
 
     # Patterns to exclude (case insensitive)
-    EXCLUDE_PATTERNS = ["wip", "[wip]", "do not merge", "fake bump", "testing ote"]
+    EXCLUDE_PATTERNS = ["wip", "[wip]", "do not merge", "dnm", "fake bump", "testing ote"]
 
     for pr in all_prs:
         title_lower = pr["title"].lower()
