@@ -39,6 +39,12 @@ FILTER_SYSTEM_PROMPT = """You are a PR dashboard generator for the KMS/Vault/enc
 
 PRs have already been filtered to only KMS-related work. Your job is to format them into a clear dashboard.
 
+**CRITICAL: Include ALL PRs**
+- You MUST include EVERY SINGLE PR in the input data
+- Do NOT filter out or skip any PRs
+- This includes automatic dependency bumps, rebases, and maintenance PRs
+- The Python code has already done the filtering - your job is ONLY formatting
+
 **CRITICAL: PR References**
 - ALWAYS use full repo format: openshift/repo#number (e.g., openshift/library-go#2264)
 - NEVER use just #number (it will resolve to wrong repo in GitHub issue)
@@ -246,7 +252,7 @@ async def main():
     os.makedirs(output_dir, exist_ok=True)
 
     # Save dashboard
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d")
     output_file = f"{output_dir}/kms-{timestamp}.md"
 
     with open(output_file, "w") as f:
