@@ -10,6 +10,7 @@ Monitors GitHub PRs and Jira tickets, generates briefs with what needs attention
 - Generates briefs with prioritized action items
 - Detects what changed since last run
 - **Automated labeling agent**: Auto-labels bot PRs with required Tide labels (/approve, /verified, /label backport-risk-assessed)
+- **Feature team PR dashboard**: Generates filtered dashboards for feature teams, posts to GitHub issues
 
 ## Architecture
 
@@ -87,6 +88,29 @@ The labeling agent automatically processes bot-created PRs and adds required Tid
 - Posts comment identifying the action was performed by the agent on behalf of you
 
 **Schedule:** Runs twice daily (9:30 AM and 2:30 PM) to catch new bot PRs
+
+### Feature Team PR Dashboard
+
+Generates an LLM-filtered dashboard for feature teams, showing only relevant PRs with actionable items per person.
+
+**Features:**
+- Filters PRs by topic (e.g., KMS/Vault/encryption)
+- Removes noise (fake bumps, test PRs, abandoned WIPs)
+- Categorizes by action needed: /verified, /lgtm, CI fixes, etc.
+- Prioritizes PRs (high/medium/low)
+- Generates action items per team member
+- Posts to GitHub issue that auto-updates on each run
+
+**Configuration:**
+Edit `team_dashboard.py` to customize:
+- Team members (KMS_TEAM['authors'])
+- Repositories (KMS_TEAM['repos'])
+- Filtering criteria (FILTER_SYSTEM_PROMPT)
+
+**Output:**
+- Saved to: `briefings/team-dashboards/kms-{timestamp}.md`
+- Posted/updated in: GitHub issue in openshift/library-go
+- Issue number tracked in: `briefings/team-dashboards/.issue_number`
 
 ### Brief Storage
 
@@ -182,6 +206,9 @@ Run bot PR labeler:
 
 Test labeler (dry run):
 - uv run main.py --mode label-bot-prs --dry-run
+
+Generate feature team PR dashboard:
+- uv run main.py --mode team-dashboard
 
 Check specific PR:
 - uv run main.py --mode check-pr --pr owner/repo#123

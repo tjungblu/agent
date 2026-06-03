@@ -336,7 +336,7 @@ def main():
     parser = argparse.ArgumentParser(description="Developer workflow automation agent")
     parser.add_argument(
         "--mode",
-        choices=["brief", "check-pr", "setup-mcp", "label-bot-prs"],
+        choices=["brief", "check-pr", "setup-mcp", "label-bot-prs", "team-dashboard"],
         default="brief",
         help="Mode to run in",
     )
@@ -354,6 +354,12 @@ def main():
         # Run the labeling agent
         from labeler import run_labeler
         run_labeler(dry_run=args.dry_run)
+        return
+
+    if args.mode == "team-dashboard":
+        # Run the team dashboard generator (LLM-filtered markdown output)
+        from team_dashboard import main as dashboard_main
+        asyncio.run(dashboard_main())
         return
 
     # Initialize client

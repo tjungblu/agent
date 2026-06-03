@@ -66,6 +66,26 @@ GITHUB_TOOLS = [
         },
     },
     {
+        "name": "get_team_prs",
+        "description": "Get all open PRs from specific authors across specific repositories. Useful for tracking feature team work.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "authors": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of GitHub usernames to track",
+                },
+                "repos": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of repositories in owner/name format",
+                },
+            },
+            "required": ["authors", "repos"],
+        },
+    },
+    {
         "name": "get_previous_state",
         "description": "Load the state from the previous run to detect what's changed. Returns last seen PRs, tickets, and the previous brief.",
         "input_schema": {"type": "object", "properties": {}},
@@ -137,6 +157,70 @@ def get_prs_needing_review() -> Dict[str, Any]:
     return {"prs": open_prs}
 
 
+def get_team_prs(authors: List[str], repos: List[str]) -> Dict[str, Any]:
+    """Get all open PRs from specific authors across specific repositories."""
+    all_prs = []
+
+    # gh search doesn't work well with complex queries, so we iterate per repo
+    for repo in repos:
+        for author in authors:
+            cmd = [
+                "gh",
+                "pr",
+                "list",
+                "--repo",
+                repo,
+                "--author",
+                author,
+                "--state",
+                "open",
+                "--json",
+                "number,title,url,author,isDraft,createdAt,reviewDecision,statusCheckRollup,labels,state,body",
+                "--limit",
+                "50",
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                # Skip repos that don't exist or we can't access
+                continue
+
+            repo_prs = json.loads(result.stdout)
+            # Add repo info to each PR since it's not included in the JSON
+            # Also summarize statusCheckRollup to reduce token usage
+            for pr in repo_prs:
+                pr["repository"] = repo
+                # Simplify statusCheckRollup - just track if CI is passing
+                rollup = pr.get("statusCheckRollup", [])
+                if rollup:
+                    failing = any(
+                        check.get("state") in ["FAILURE", "ERROR", "PENDING"]
+                        or check.get("conclusion") in ["FAILURE", "ACTION_REQUIRED", "TIMED_OUT"]
+                        for check in rollup
+                    )
+                    pr["ciStatus"] = "FAILING" if failing else "PASSING"
+                else:
+                    pr["ciStatus"] = "UNKNOWN"
+                # Remove the full rollup to save tokens
+                pr.pop("statusCheckRollup", None)
+            all_prs.extend(repo_prs)
+
+    # Filter to ensure only OPEN PRs (not MERGED or CLOSED) and deduplicate
+    seen = set()
+    open_prs = []
+    for pr in all_prs:
+        # Skip merged or closed PRs
+        if pr.get("state", "").upper() in ["MERGED", "CLOSED"]:
+            continue
+
+        pr_id = (pr["repository"], pr["number"])
+        if pr_id not in seen:
+            seen.add(pr_id)
+            open_prs.append(pr)
+
+    return {"prs": open_prs}
+
+
 def get_pr_details(repo: str, pr_number: int) -> Dict[str, Any]:
     """Get detailed PR information."""
     cmd = [
@@ -190,6 +274,7 @@ def save_state(state: Dict[str, Any], state_file: str = "briefings/state.json") 
 TOOL_IMPLEMENTATIONS = {
     "get_my_prs": get_my_prs,
     "get_prs_needing_review": get_prs_needing_review,
+    "get_team_prs": get_team_prs,
     "get_pr_details": get_pr_details,
     "add_pr_label": add_pr_label,
     "get_previous_state": get_previous_state,
