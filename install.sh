@@ -77,9 +77,11 @@ echo "✓ Found uv at: $UV_PATH"
 sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-morning-brief.service" > "$SYSTEMD_USER_DIR/agent-morning-brief.service"
 sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-hourly-brief.service" > "$SYSTEMD_USER_DIR/agent-hourly-brief.service"
 sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-labeler.service" > "$SYSTEMD_USER_DIR/agent-labeler.service"
+sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-team-dashboard.service" > "$SYSTEMD_USER_DIR/agent-team-dashboard.service"
 cp "$SCRIPT_DIR/systemd/agent-morning-brief.timer" "$SYSTEMD_USER_DIR/"
 cp "$SCRIPT_DIR/systemd/agent-hourly-brief.timer" "$SYSTEMD_USER_DIR/"
 cp "$SCRIPT_DIR/systemd/agent-labeler.timer" "$SYSTEMD_USER_DIR/"
+cp "$SCRIPT_DIR/systemd/agent-team-dashboard.timer" "$SYSTEMD_USER_DIR/"
 
 echo "✓ Systemd files copied"
 echo
@@ -100,11 +102,13 @@ echo "🎯 Enabling timers..."
 systemctl --user enable agent-morning-brief.timer
 systemctl --user enable agent-hourly-brief.timer
 systemctl --user enable agent-labeler.timer
+systemctl --user enable agent-team-dashboard.timer
 
 echo "▶️  Starting timers..."
 systemctl --user start agent-morning-brief.timer
 systemctl --user start agent-hourly-brief.timer
 systemctl --user start agent-labeler.timer
+systemctl --user start agent-team-dashboard.timer
 
 echo "✓ Timers started"
 echo
@@ -120,6 +124,9 @@ systemctl --user status agent-hourly-brief.timer --no-pager -l
 echo
 echo "Bot PR Labeler Timer:"
 systemctl --user status agent-labeler.timer --no-pager -l
+echo
+echo "Team Dashboard Timer:"
+systemctl --user status agent-team-dashboard.timer --no-pager -l
 echo
 
 echo "✅ Installation complete!"

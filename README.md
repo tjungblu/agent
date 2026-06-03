@@ -20,6 +20,7 @@ Monitors GitHub PRs and Jira tickets, generates briefs with what needs attention
 - Morning brief: Mon-Fri at 9:03 AM
 - Hourly briefs: Mon-Fri at :47 past each hour (9 AM - 6 PM)
 - Bot PR labeler: Mon-Fri at 9:30 AM and 2:30 PM
+- Team dashboard: Every hour at :15 past the hour
 
 **Main Orchestrator** (main.py)
 - Initializes Claude API client via Vertex AI
@@ -175,10 +176,12 @@ Edit .env with:
 **Check timer status:**
 - systemctl --user status agent-morning-brief.timer
 - systemctl --user status agent-hourly-brief.timer
+- systemctl --user status agent-team-dashboard.timer
 
 **View logs:**
 - journalctl --user -u agent-morning-brief.service -f
 - journalctl --user -u agent-hourly-brief.service -f
+- journalctl --user -u agent-team-dashboard.service -f
 
 **List upcoming brief times:**
 - systemctl --user list-timers

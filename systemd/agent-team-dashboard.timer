@@ -1,0 +1,10 @@
+[Unit]
+Description=Developer Workflow Team Dashboard Timer
+
+[Timer]
+# Run every hour at :15 past the hour (offset from other timers)
+OnCalendar=*-*-* *:15:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

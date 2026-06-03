@@ -1,0 +1,10 @@
+[Unit]
+Description=Developer Workflow Team Dashboard
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/git/agent
+EnvironmentFile=%h/git/agent/.env
+ExecStart=UV_PATH run python main.py --mode team-dashboard
+StandardOutput=journal
+StandardError=journal
