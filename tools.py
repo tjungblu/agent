@@ -282,6 +282,93 @@ TOOL_IMPLEMENTATIONS = {
 }
 
 
+def check_library_go_rebase_status(repos: List[str]) -> Dict[str, Any]:
+    """Check if operator repos are rebased against library-go HEAD.
+
+    Args:
+        repos: List of repo names in format "openshift/repo-name"
+
+    Returns:
+        Dict with repo status: {
+            "library_go_sha": "abc123...",
+            "library_go_short_sha": "abc123",
+            "repos": {
+                "openshift/repo-name": {
+                    "is_rebased": bool,
+                    "current_sha": "def456...",
+                    "current_short_sha": "def456"
+                }
+            }
+        }
+    """
+    # Get library-go HEAD SHA (uses master branch)
+    cmd = ["gh", "api", "repos/openshift/library-go/branches/master", "--jq", ".commit.sha"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        return {"error": f"Failed to get library-go HEAD: {result.stderr}"}
+
+    library_go_sha = result.stdout.strip()
+    library_go_short = library_go_sha[:7]
+
+    repo_status = {}
+    for repo in repos:
+        # Get go.mod from repo
+        repo_name = repo.split("/")[-1]
+        cmd = ["gh", "api", f"repos/{repo}/contents/go.mod", "--jq", ".content"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            repo_status[repo] = {
+                "is_rebased": False,
+                "current_sha": None,
+                "current_short_sha": None,
+                "error": "Could not fetch go.mod"
+            }
+            continue
+
+        # Decode base64 content
+        import base64
+        go_mod_content = base64.b64decode(result.stdout.strip()).decode('utf-8')
+
+        # Parse library-go version from go.mod
+        # Look for line like: github.com/openshift/library-go v0.0.0-20240101000000-abc123def456
+        # The SHA is the last part after the last hyphen, but it's only 12 chars
+        # We need to compare it with the first 12 chars of library-go HEAD
+        current_sha = None
+        for line in go_mod_content.split('\n'):
+            if 'github.com/openshift/library-go' in line and not line.strip().startswith('//'):
+                # Extract SHA from version string (last part after -)
+                parts = line.split()
+                if len(parts) >= 2:
+                    version = parts[1]
+                    if '-' in version:
+                        # The version format is v0.0.0-YYYYMMDDHHMMSS-abcdef123456
+                        # The SHA is the last 12 characters
+                        current_sha = version.split('-')[-1]
+                        break
+
+        if current_sha:
+            # go.mod only stores first 12 chars of SHA, so compare with library-go's first 12
+            is_rebased = current_sha == library_go_sha[:12]
+            repo_status[repo] = {
+                "is_rebased": is_rebased,
+                "current_sha": current_sha,
+                "current_short_sha": current_sha[:7]
+            }
+        else:
+            repo_status[repo] = {
+                "is_rebased": False,
+                "current_sha": None,
+                "current_short_sha": None,
+                "error": "Could not parse library-go version from go.mod"
+            }
+
+    return {
+        "library_go_sha": library_go_sha,
+        "library_go_short_sha": library_go_short,
+        "repos": repo_status
+    }
+
+
 def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> Dict[str, Any]:
     """Execute a tool and return the result."""
     func = TOOL_IMPLEMENTATIONS.get(tool_name)

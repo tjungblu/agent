@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 
 from anthropic import AnthropicVertex
 from dotenv import load_dotenv
-from tools import get_team_prs
+from tools import get_team_prs, check_library_go_rebase_status
 
 # Load environment variables
 load_dotenv()
@@ -24,6 +24,7 @@ KMS_TEAM = {
         "tjungblu",
         "ibihim",
         "flavianmissi",
+        "sandeepknd",
     ],
     "repos": [
         "openshift/library-go",
@@ -35,6 +36,13 @@ KMS_TEAM = {
     ],
 }
 
+# Operator repos to check for library-go rebase status
+OPERATOR_REPOS = [
+    "openshift/cluster-authentication-operator",
+    "openshift/cluster-kube-apiserver-operator",
+    "openshift/cluster-openshift-apiserver-operator",
+]
+
 FILTER_SYSTEM_PROMPT = """You are a PR dashboard generator for the KMS/Vault/encryption feature team.
 
 PRs have already been filtered to only KMS-related work. Your job is to format them into a clear dashboard.
@@ -44,6 +52,12 @@ PRs have already been filtered to only KMS-related work. Your job is to format t
 - Do NOT filter out or skip any PRs
 - This includes automatic dependency bumps, rebases, and maintenance PRs
 - The Python code has already done the filtering - your job is ONLY formatting
+
+**CRITICAL: Include the library-go status table**
+- You will receive a library-go rebase status table in the user message
+- You MUST include this table EXACTLY AS PROVIDED at the top of the dashboard
+- Place it immediately after the "Generated:" timestamp and before the "Summary" section
+- Do not modify the table content
 
 **CRITICAL: PR References**
 - ALWAYS use full repo format: openshift/repo#number (e.g., openshift/library-go#2264)
@@ -69,6 +83,8 @@ If nothing missing: "Ready to Merge"
 
 # KMS Team PR Dashboard
 **Generated:** {timestamp}
+
+[INSERT LIBRARY-GO STATUS TABLE HERE - provided in user message]
 
 ## Summary
 - Relevant PRs: X
@@ -171,6 +187,43 @@ def filter_prs(all_prs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return filtered
 
 
+def generate_library_go_status_table() -> str:
+    """Generate markdown table showing library-go rebase status."""
+    print("Checking library-go rebase status...")
+    status = check_library_go_rebase_status(OPERATOR_REPOS)
+
+    if "error" in status:
+        return f"## library-go Rebase Status\n\n⚠️ Error checking status: {status['error']}\n"
+
+    # Build markdown table
+    lines = [
+        "## library-go Rebase Status",
+        f"**library-go HEAD:** `{status['library_go_short_sha']}`",
+        "",
+        "| Repository | Status | Current SHA |",
+        "|------------|--------|-------------|",
+    ]
+
+    for repo in OPERATOR_REPOS:
+        repo_short = short_repo_name(repo)
+        repo_data = status["repos"].get(repo, {})
+
+        if "error" in repo_data:
+            status_icon = "❌"
+            current = repo_data["error"]
+        elif repo_data.get("is_rebased"):
+            status_icon = "✅"
+            current = f"`{repo_data['current_short_sha']}`"
+        else:
+            status_icon = "❌"
+            current = f"`{repo_data['current_short_sha']}` (needs rebase)"
+
+        lines.append(f"| {repo_short} | {status_icon} | {current} |")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
 async def generate_dashboard(all_prs: List[Dict[str, Any]]) -> str:
     """Use LLM to generate filtered dashboard as markdown."""
     client = AnthropicVertex(
@@ -182,6 +235,9 @@ async def generate_dashboard(all_prs: List[Dict[str, Any]]) -> str:
     filtered_prs = filter_prs(all_prs)
 
     print(f"Filtered to {len(filtered_prs)} KMS-related PRs (from {len(all_prs)} total)")
+
+    # Generate library-go status table
+    library_go_status = generate_library_go_status_table()
 
     # Prepare PR data for LLM
     pr_data = []
@@ -213,7 +269,15 @@ async def generate_dashboard(all_prs: List[Dict[str, Any]]) -> str:
         messages=[
             {
                 "role": "user",
-                "content": f"Generate a filtered KMS team dashboard from these PRs:\n\n{json.dumps(pr_data, indent=2)}",
+                "content": f"""Generate a filtered KMS team dashboard from these PRs.
+
+Library-go rebase status table (include this EXACTLY as shown at the top of the dashboard):
+
+{library_go_status}
+
+PR data:
+
+{json.dumps(pr_data, indent=2)}""",
             }
         ],
     )
