@@ -1,0 +1,10 @@
+[Unit]
+Description=Personal Workflow Briefing Timer
+
+[Timer]
+# Run every hour at :45 past the hour (offset from team dashboard at :15)
+OnCalendar=*-*-* *:45:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -73,14 +73,29 @@ if [ -z "$UV_PATH" ]; then
 fi
 echo "✓ Found uv at: $UV_PATH"
 
+# Stop and disable old timers if they exist
+echo "🛑 Removing old morning and hourly brief timers..."
+if systemctl --user is-active --quiet agent-morning-brief.timer; then
+    systemctl --user stop agent-morning-brief.timer
+fi
+if systemctl --user is-enabled --quiet agent-morning-brief.timer 2>/dev/null; then
+    systemctl --user disable agent-morning-brief.timer
+fi
+
+if systemctl --user is-active --quiet agent-hourly-brief.timer; then
+    systemctl --user stop agent-hourly-brief.timer
+fi
+if systemctl --user is-enabled --quiet agent-hourly-brief.timer 2>/dev/null; then
+    systemctl --user disable agent-hourly-brief.timer
+fi
+echo "✓ Old timers removed"
+
 # Copy systemd files and substitute paths
-sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-morning-brief.service" > "$SYSTEMD_USER_DIR/agent-morning-brief.service"
-sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-hourly-brief.service" > "$SYSTEMD_USER_DIR/agent-hourly-brief.service"
+sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-personal-briefing.service" > "$SYSTEMD_USER_DIR/agent-personal-briefing.service"
+cp "$SCRIPT_DIR/systemd/agent-personal-briefing.timer" "$SYSTEMD_USER_DIR/"
 sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-labeler.service" > "$SYSTEMD_USER_DIR/agent-labeler.service"
-sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-team-dashboard.service" > "$SYSTEMD_USER_DIR/agent-team-dashboard.service"
-cp "$SCRIPT_DIR/systemd/agent-morning-brief.timer" "$SYSTEMD_USER_DIR/"
-cp "$SCRIPT_DIR/systemd/agent-hourly-brief.timer" "$SYSTEMD_USER_DIR/"
 cp "$SCRIPT_DIR/systemd/agent-labeler.timer" "$SYSTEMD_USER_DIR/"
+sed "s|UV_PATH|$UV_PATH|g" "$SCRIPT_DIR/systemd/agent-team-dashboard.service" > "$SYSTEMD_USER_DIR/agent-team-dashboard.service"
 cp "$SCRIPT_DIR/systemd/agent-team-dashboard.timer" "$SYSTEMD_USER_DIR/"
 
 echo "✓ Systemd files copied"
@@ -99,14 +114,12 @@ fi
 
 # Enable and start services
 echo "🎯 Enabling timers..."
-systemctl --user enable agent-morning-brief.timer
-systemctl --user enable agent-hourly-brief.timer
+systemctl --user enable agent-personal-briefing.timer
 systemctl --user enable agent-labeler.timer
 systemctl --user enable agent-team-dashboard.timer
 
 echo "▶️  Starting timers..."
-systemctl --user start agent-morning-brief.timer
-systemctl --user start agent-hourly-brief.timer
+systemctl --user start agent-personal-briefing.timer
 systemctl --user start agent-labeler.timer
 systemctl --user start agent-team-dashboard.timer
 
@@ -116,11 +129,8 @@ echo
 # Show status
 echo "📊 Timer Status:"
 echo
-echo "Morning Brief Timer:"
-systemctl --user status agent-morning-brief.timer --no-pager -l
-echo
-echo "Hourly Brief Timer:"
-systemctl --user status agent-hourly-brief.timer --no-pager -l
+echo "Personal Briefing Timer:"
+systemctl --user status agent-personal-briefing.timer --no-pager -l
 echo
 echo "Bot PR Labeler Timer:"
 systemctl --user status agent-labeler.timer --no-pager -l

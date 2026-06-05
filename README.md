@@ -4,21 +4,19 @@ Monitors GitHub PRs and Jira tickets, generates briefs with what needs attention
 
 ## What It Does
 
-- Tracks your GitHub PRs and review requests
-- Monitors Jira tickets via Atlassian MCP server
+- **Personal workflow briefing**: Tracks your GitHub PRs, review requests, and Jira tickets with hourly updates posted to a GitHub issue
+- **Automated labeling agent**: Auto-labels bot PRs with required Tide labels (/approve, /verified, /label backport-risk-assessed)
+- **Feature team PR dashboard**: Generates filtered dashboards for feature teams, posts to GitHub issues
 - Identifies blockers, missing approvals, urgent items
 - Generates briefs with prioritized action items
 - Detects what changed since last run
-- **Automated labeling agent**: Auto-labels bot PRs with required Tide labels (/approve, /verified, /label backport-risk-assessed)
-- **Feature team PR dashboard**: Generates filtered dashboards for feature teams, posts to GitHub issues
 
 ## Architecture
 
 ### Components
 
 **Scheduler** (systemd timers)
-- Morning brief: Mon-Fri at 9:03 AM
-- Hourly briefs: Mon-Fri at :47 past each hour (9 AM - 6 PM)
+- Personal briefing: Every hour at :45 past the hour (creates GitHub issue)
 - Bot PR labeler: Mon-Fri at 9:30 AM and 2:30 PM
 - Team dashboard: Every hour at :15 past the hour
 
@@ -90,6 +88,24 @@ The labeling agent automatically processes bot-created PRs and adds required Tid
 
 **Schedule:** Runs twice daily (9:30 AM and 2:30 PM) to catch new bot PRs
 
+### Personal Workflow Briefing
+
+Unified hourly briefing that tracks your personal PRs, reviews, and Jira tickets, posted to a GitHub issue.
+
+**Features:**
+- Tracks your GitHub PRs across all repositories (downstream and upstream)
+- Monitors review requests assigned to you
+- Integrates Jira tickets via Atlassian MCP
+- Detects changes since last run
+- Generates action items prioritized by urgency
+- Posts to GitHub issue that auto-updates on each run
+- Saves historical briefs to local files
+
+**Output:**
+- Saved to: `briefings/YYYY/MM/DD/HHMM.md`
+- Posted/updated in: GitHub issue in tjungblu/agent
+- Issue title: "[Auto-Generated] Personal Workflow Brief"
+
 ### Feature Team PR Dashboard
 
 Generates an LLM-filtered dashboard for feature teams, showing only relevant PRs with actionable items per person.
@@ -111,32 +127,26 @@ Edit `team_dashboard.py` to customize:
 **Output:**
 - Saved to: `briefings/team-dashboards/kms-{timestamp}.md`
 - Posted/updated in: GitHub issue in openshift/library-go
-- Issue number tracked in: `briefings/team-dashboards/.issue_number`
 
 ### Brief Storage
 
 All briefs and state are saved in the briefings/ folder:
-- Morning briefs: briefings/YYYY/MM/DD-morning.md
-- Hourly briefs: briefings/YYYY/MM/DD/HHMM.md
+- Personal briefs: briefings/YYYY/MM/DD/HHMM.md
+- Team dashboards: briefings/team-dashboards/kms-{timestamp}.md
 - State tracking: briefings/state.json
-
-Morning briefs are also copied to ~/Desktop/morning-brief.md for easy access. This file is replaced daily with the latest morning brief.
 
 Example structure:
 ```
 briefings/
 ├── state.json           ← Tracks changes between runs
+├── team-dashboards/     ← Team PR dashboards
+│   └── kms-20260605.md
 └── 2026/
     └── 05/
-        ├── 15-morning.md
-        ├── 16-morning.md
-        ├── 15/
-        │   ├── 0947.md
-        │   ├── 1047.md
-        │   └── 1147.md
-        └── 16/
-            ├── 0947.md
-            └── 1047.md
+        └── 15/
+            ├── 0945.md  ← Personal briefings
+            ├── 1045.md
+            └── 1145.md
 ```
 
 ## Setup
@@ -174,20 +184,18 @@ Edit .env with:
 ### Managing Services
 
 **Check timer status:**
-- systemctl --user status agent-morning-brief.timer
-- systemctl --user status agent-hourly-brief.timer
+- systemctl --user status agent-personal-briefing.timer
 - systemctl --user status agent-team-dashboard.timer
 
 **View logs:**
-- journalctl --user -u agent-morning-brief.service -f
-- journalctl --user -u agent-hourly-brief.service -f
+- journalctl --user -u agent-personal-briefing.service -f
 - journalctl --user -u agent-team-dashboard.service -f
 
 **List upcoming brief times:**
 - systemctl --user list-timers
 
 **Trigger a brief manually:**
-- systemctl --user start agent-morning-brief.service
+- systemctl --user start agent-personal-briefing.service
 
 Note: MCP server spawns automatically when briefs run
 
@@ -195,33 +203,25 @@ Note: MCP server spawns automatically when briefs run
 
 ### Manual Run
 
-Generate brief now:
-- uv run main.py --mode brief
+All modes are run through `main.py`:
 
-Generate morning brief (creates desktop symlink):
-- uv run main.py --mode brief --morning
-
-Dry run (no state changes):
-- uv run main.py --mode brief --dry-run
-
-Run bot PR labeler:
-- uv run main.py --mode label-bot-prs
-
-Test labeler (dry run):
-- uv run main.py --mode label-bot-prs --dry-run
+Generate personal briefing now (posts to GitHub issue):
+- uv run python main.py --mode personal-briefing
 
 Generate feature team PR dashboard:
-- uv run main.py --mode team-dashboard
+- uv run python main.py --mode team-dashboard
 
-Check specific PR:
-- uv run main.py --mode check-pr --pr owner/repo#123
+Run bot PR labeler:
+- uv run python main.py --mode label-bot-prs
 
-View latest morning brief:
-- cat ~/Desktop/morning-brief.md
-- Or open ~/Desktop/morning-brief.md in your editor
+Test labeler (dry run):
+- uv run python main.py --mode label-bot-prs --dry-run
 
 Browse all briefs:
 - ls -lh briefings/
+
+View GitHub issue (personal brief):
+- Open https://github.com/tjungblu/agent/issues
 
 ### Example Output
 
