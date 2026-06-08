@@ -175,7 +175,7 @@ def get_team_prs(authors: List[str], repos: List[str]) -> Dict[str, Any]:
                 "--state",
                 "open",
                 "--json",
-                "number,title,url,author,isDraft,createdAt,reviewDecision,statusCheckRollup,labels,state,body",
+                "number,title,url,author,isDraft,createdAt,reviewDecision,statusCheckRollup,labels,state,body,headRefOid",
                 "--limit",
                 "50",
             ]
@@ -190,19 +190,36 @@ def get_team_prs(authors: List[str], repos: List[str]) -> Dict[str, Any]:
             # Also summarize statusCheckRollup to reduce token usage
             for pr in repo_prs:
                 pr["repository"] = repo
-                # Simplify statusCheckRollup - just track if CI is passing
+
+                # Extract tide status with description if available
+                # Tide has all the merge rules, required jobs and context for proper status
+                tide_status = None
                 rollup = pr.get("statusCheckRollup", [])
                 if rollup:
-                    failing = any(
-                        check.get("state") in ["FAILURE", "ERROR", "PENDING"]
-                        or check.get("conclusion") in ["FAILURE", "ACTION_REQUIRED", "TIMED_OUT"]
-                        for check in rollup
-                    )
-                    pr["ciStatus"] = "FAILING" if failing else "PASSING"
-                else:
-                    pr["ciStatus"] = "UNKNOWN"
+                    # Look for tide status in the rollup
+                    for check in rollup:
+                        if check.get("context") == "tide":
+                            # Fetch the detailed tide status from the API to get description
+                            head_sha = pr.get("headRefOid")
+                            if head_sha:
+                                api_cmd = [
+                                    "gh", "api",
+                                    f"repos/{repo}/commits/{head_sha}/status",
+                                    "--jq", '.statuses[] | select(.context == "tide") | {state: .state, description: .description}'
+                                ]
+                                api_result = subprocess.run(api_cmd, capture_output=True, text=True)
+                                if api_result.returncode == 0 and api_result.stdout.strip():
+                                    tide_data = json.loads(api_result.stdout)
+                                    tide_status = {
+                                        "state": tide_data.get("state", "unknown").upper(),
+                                        "description": tide_data.get("description", "")
+                                    }
+                            break
+
+                pr["tideStatus"] = tide_status
                 # Remove the full rollup to save tokens
                 pr.pop("statusCheckRollup", None)
+                pr.pop("headRefOid", None)  # Don't need this in the final output
             all_prs.extend(repo_prs)
 
     # Filter to ensure only OPEN PRs (not MERGED or CLOSED) and deduplicate

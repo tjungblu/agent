@@ -72,12 +72,13 @@ PRs have already been filtered to only KMS-related work. Your job is to format t
 - NO generic advice
 
 **Status Format:**
-List ALL missing items comma-separated:
-- "Missing /lgtm" (if has_lgtm is false)
-- "Missing /approve" (if has_approved is false)
-- "Missing /verified" (if has_verified is false AND is_enhancements_repo is false)
-- "CI Failing" (if ci_status is FAILING)
-If nothing missing: "Ready to Merge"
+Use tide_status when available (it has all merge rules and required jobs context):
+- If tide_status exists and state is "SUCCESS": "Ready to Merge"
+- If tide_status exists and state is "PENDING" or "FAILURE": Use tide_description (e.g., "Not mergeable. Should not have do-not-merge/hold label")
+- If no tide_status, list missing items comma-separated:
+  - "Missing /lgtm" (if has_lgtm is false)
+  - "Missing /approve" (if has_approved is false)
+  - "Missing /verified" (if has_verified is false AND is_enhancements_repo is false)
 
 **Output Format:**
 
@@ -129,28 +130,35 @@ def get_status_string(pr: Dict[str, Any]) -> str:
     do_not_merge_wip = "do-not-merge/work-in-progress" in labels
     repo = pr.get("repository", "")
 
-    # Tide verify label check (skip for enhancements repo)
-    if "enhancements" not in repo:
-        if not any(label.startswith("verified") or label == "verified" for label in labels):
-            return "Needs /verified"
-
     # Draft or WIP
     if pr.get("isDraft") or do_not_merge_wip:
         return "Draft/WIP"
 
-    # CI status check
-    if pr.get("ciStatus") == "FAILING":
-        return "CI Failing"
+    # Tide status has all merge rules and required jobs context - use it if available
+    tide_status = pr.get("tideStatus")
+    if tide_status:
+        state = tide_status.get("state", "").upper()
+        description = tide_status.get("description", "")
+
+        if state == "SUCCESS":
+            return "Ready to Merge"
+        elif description:
+            # Return the tide description directly as it explains what's blocking
+            return description
+        elif state in ["PENDING", "FAILURE"]:
+            return "Waiting for merge checks"
+
+    # Fallback to basic label checks if no tide status
+    # Verify label check (skip for enhancements repo)
+    if "enhancements" not in repo:
+        if not any(label.startswith("verified") or label == "verified" for label in labels):
+            return "Needs /verified"
 
     # Approval check
     if not has_lgtm and not has_approved:
         if pr.get("reviewDecision") == "CHANGES_REQUESTED":
             return "Changes Requested"
         return "Needs /lgtm or /approve"
-
-    # If approved but CI not passing
-    if pr.get("ciStatus") != "PASSING":
-        return "Waiting for CI"
 
     return "Ready to Merge"
 
@@ -187,21 +195,35 @@ def filter_prs(all_prs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return filtered
 
 
-def generate_library_go_status_table() -> str:
-    """Generate markdown table showing library-go rebase status."""
+def generate_library_go_status_table(prs: List[Dict[str, Any]]) -> str:
+    """Generate markdown table showing library-go rebase status with PR cross-reference.
+
+    Args:
+        prs: List of all PRs to cross-reference with rebase status
+    """
     print("Checking library-go rebase status...")
     status = check_library_go_rebase_status(OPERATOR_REPOS)
 
     if "error" in status:
         return f"## library-go Rebase Status\n\n⚠️ Error checking status: {status['error']}\n"
 
+    # Build a map of repo -> rebase PR
+    rebase_prs = {}
+    target_sha = status['library_go_short_sha']
+    for pr in prs:
+        repo = pr.get("repository", "")
+        title = pr.get("title", "").lower()
+        # Look for automatic rebase PRs that mention the target SHA
+        if ("rebase" in title or "update library-go" in title) and target_sha in title:
+            rebase_prs[repo] = pr
+
     # Build markdown table
     lines = [
         "## library-go Rebase Status",
         f"**library-go HEAD:** `{status['library_go_short_sha']}`",
         "",
-        "| Repository | Status | Current SHA |",
-        "|------------|--------|-------------|",
+        "| Repository | Status | Current SHA | Rebase PR |",
+        "|------------|--------|-------------|-----------|",
     ]
 
     for repo in OPERATOR_REPOS:
@@ -218,7 +240,13 @@ def generate_library_go_status_table() -> str:
             status_icon = "❌"
             current = f"`{repo_data['current_short_sha']}` (needs rebase)"
 
-        lines.append(f"| {repo_short} | {status_icon} | {current} |")
+        # Add rebase PR link if exists
+        pr_link = "-"
+        if repo in rebase_prs:
+            pr = rebase_prs[repo]
+            pr_link = f"[#{pr['number']}]({pr['url']})"
+
+        lines.append(f"| {repo_short} | {status_icon} | {current} | {pr_link} |")
 
     lines.append("")
     return "\n".join(lines)
@@ -236,13 +264,15 @@ async def generate_dashboard(all_prs: List[Dict[str, Any]]) -> str:
 
     print(f"Filtered to {len(filtered_prs)} KMS-related PRs (from {len(all_prs)} total)")
 
-    # Generate library-go status table
-    library_go_status = generate_library_go_status_table()
+    # Generate library-go status table with PR cross-reference
+    library_go_status = generate_library_go_status_table(all_prs)
 
     # Prepare PR data for LLM
     pr_data = []
     for pr in filtered_prs:
         labels = [label.get("name", "") for label in pr.get("labels", [])]
+        tide_status = pr.get("tideStatus")
+
         pr_data.append({
             "repo_short": short_repo_name(pr["repository"]),
             "repo_full": pr["repository"],
@@ -253,7 +283,8 @@ async def generate_dashboard(all_prs: List[Dict[str, Any]]) -> str:
             "author_name": pr["author"].get("name", pr["author"]["login"]),
             "days_open": days_since(pr["createdAt"]),
             "is_draft": pr.get("isDraft", False),
-            "ci_status": pr.get("ciStatus", "UNKNOWN"),
+            "tide_state": tide_status.get("state") if tide_status else None,
+            "tide_description": tide_status.get("description") if tide_status else None,
             "has_lgtm": "lgtm" in labels,
             "has_approved": "approved" in labels,
             "has_verified": any(l.startswith("verified") or l == "verified" for l in labels),
