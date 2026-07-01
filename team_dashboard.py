@@ -23,7 +23,6 @@ KMS_TEAM = {
         "p0lyn0mial",
         "tjungblu",
         "ibihim",
-        "flavianmissi",
         "sandeepknd",
     ],
     "repos": [
