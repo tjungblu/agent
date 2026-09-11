@@ -54,9 +54,9 @@ PRs have already been filtered to only KMS-related work. Your job is to format t
 
 **CRITICAL: Include the library-go status table**
 - You will receive a library-go rebase status table in the user message
-- You MUST include this table EXACTLY AS PROVIDED at the top of the dashboard
-- Place it immediately after the "Generated:" timestamp and before the "Summary" section
+- You MUST include this table EXACTLY AS PROVIDED at the very top of your response, before the "Summary" section
 - Do not modify the table content
+- Do NOT add a title or "Generated:" timestamp line yourself - that is added separately by the calling script
 
 **CRITICAL: PR References**
 - ALWAYS use full repo format: openshift/repo#number (e.g., openshift/library-go#2264)
@@ -80,9 +80,6 @@ Use tide_status when available (it has all merge rules and required jobs context
   - "Missing /verified" (if has_verified is false AND is_enhancements_repo is false)
 
 **Output Format:**
-
-# KMS Team PR Dashboard
-**Generated:** {timestamp}
 
 [INSERT LIBRARY-GO STATUS TABLE HERE - provided in user message]
 
@@ -290,12 +287,10 @@ async def generate_dashboard(all_prs: List[Dict[str, Any]]) -> str:
             "is_enhancements_repo": "enhancements" in pr.get("repository", ""),
         })
 
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
     response = client.messages.create(
         model="claude-sonnet-4-5",
         max_tokens=8192,
-        system=FILTER_SYSTEM_PROMPT.replace("{timestamp}", timestamp),
+        system=FILTER_SYSTEM_PROMPT,
         messages=[
             {
                 "role": "user",
@@ -318,7 +313,11 @@ PR data:
         if block.type == "text":
             result_text += block.text
 
-    return result_text
+    # Statically template the header/timestamp instead of trusting the LLM to
+    # reproduce it verbatim (it has been observed to hallucinate stale dates).
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    header = f"# KMS Team PR Dashboard\n**Generated:** {timestamp}\n\n"
+    return header + result_text
 
 
 async def main():
